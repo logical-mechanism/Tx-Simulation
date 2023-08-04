@@ -1,7 +1,9 @@
+import glob
 import json
 import os
 import subprocess
 import tempfile
+from time import sleep
 
 import cbor2
 import requests
@@ -191,11 +193,20 @@ if __name__ == "__main__":
     """
     main_script_dir = os.getcwd()
     target_folder = os.path.join(main_script_dir, 'test_data')
-    tx_draft_path = target_folder+"/tx4.draft"
+    
     network = False
     debug = False
-    required_units = from_file(tx_draft_path, network, debug)
-    print(required_units)
+    
+    # tx_draft_path = target_folder+"/tx1.draft"
+    # required_units = from_file(tx_draft_path, network, debug)
+    # print(required_units)
+    
+    draft_files = glob.glob(os.path.join(target_folder, "*.draft"))
+    for f in draft_files:
+        print(os.path.basename(f))
+        required_units = from_file(f, network, debug)
+        print(required_units)
+        sleep(0.1)
    
         
     
