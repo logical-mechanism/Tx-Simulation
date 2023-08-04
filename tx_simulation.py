@@ -137,7 +137,7 @@ def from_cbor(tx_cbor: str, network: bool) -> dict:
                     outputs.append(resolved)
                     break
     
-    # save the to the output cbor file
+    # get the resolved output cbor
     output_cbor = cbor2.dumps(outputs).hex()
     
     # try to simulate the tx and return the results else an empty dict
