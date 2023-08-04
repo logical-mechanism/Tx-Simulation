@@ -47,3 +47,7 @@ python tx_simulation.py
 ```
 
 Change which tx draft for different tests.
+
+## Known Issues
+
+Scripts involving fee logic seem to always error.
