@@ -152,10 +152,12 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False) -> dict:
     # get the resolved output cbor
     output_cbor = cbor2.dumps(outputs).hex()
     
+    # attempt to debug if required
     if debug is True:
         print(tx_cbor,'\n')
         print(input_cbor,'\n')
         print(output_cbor,'\n')
+    
     # try to simulate the tx and return the results else an empty dict
     try:
         # use some temp files that get deleted later
@@ -197,10 +199,17 @@ if __name__ == "__main__":
     network = False
     debug = False
     
+    #
+    # Single tx draft test
+    #
+    
     # tx_draft_path = target_folder+"/tx1.draft"
     # required_units = from_file(tx_draft_path, network, debug)
     # print(required_units)
     
+    #
+    # All tx draft test
+    #
     draft_files = glob.glob(os.path.join(target_folder, "*.draft"))
     for f in draft_files:
         print(os.path.basename(f))
