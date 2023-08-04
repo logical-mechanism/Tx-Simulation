@@ -8,6 +8,7 @@ import requests
 
 
 def query_tx_with_koios(hashes: list, network: bool) -> None:
+    
     # mainnet and preprod only
     subdomain = "api" if network is True else "preprod"
 
@@ -32,7 +33,7 @@ def tx_draft_to_resolved(draft: str):
     return cbor2.loads(bytes.fromhex(draft))
 
 
-def from_file(tx_draft_path: str, network: bool) -> dict:
+def from_file(tx_draft_path: str, network: bool, debug: bool = False) -> dict:
     """Simulate a tx from a tx draft file for some network. 
 
     Args:
@@ -46,10 +47,10 @@ def from_file(tx_draft_path: str, network: bool) -> dict:
     with open(tx_draft_path, 'r') as file:
         data = json.load(file)
     cborHex = data['cborHex']
-    return from_cbor(cborHex, network)
+    return from_cbor(cborHex, network, debug)
 
 
-def from_cbor(tx_cbor: str, network: bool) -> dict:
+def from_cbor(tx_cbor: str, network: bool, debug: bool = False) -> dict:
     """Simulate a tx from tx cbor for some network. 
 
     Args:
@@ -139,6 +140,10 @@ def from_cbor(tx_cbor: str, network: bool) -> dict:
     # save the to the output cbor file
     output_cbor = cbor2.dumps(outputs).hex()
     
+    if debug is True:
+        print(tx_cbor,'\n')
+        print(input_cbor,'\n')
+        print(output_cbor,'\n')
     # try to simulate the tx and return the results else an empty dict
     try:
         # use some temp files that get deleted later
@@ -176,8 +181,10 @@ if __name__ == "__main__":
     """
     main_script_dir = os.getcwd()
     target_folder = os.path.join(main_script_dir, 'test_data')
-    tx_draft_path = target_folder+"/tx1.draft"
-    required_units = from_file(tx_draft_path, False)
+    tx_draft_path = target_folder+"/tx4.draft"
+    network = False
+    debug = False
+    required_units = from_file(tx_draft_path, network, debug)
     print(required_units)
    
         
