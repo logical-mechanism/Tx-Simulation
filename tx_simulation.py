@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import tempfile
-from typing import Any
 
 import cbor2
 import requests
@@ -28,7 +27,7 @@ def to_bytes(s: str) -> bytes:
     # Convert the string to bytes and prepend with 'h' to indicate hexadecimal format
     return bytes.fromhex(s)
 
-def tx_draft_to_resolved(draft: str) -> Any:
+def tx_draft_to_resolved(draft: str) -> list:
     # return the data from the cbor for parsing
     return cbor2.loads(bytes.fromhex(draft))
 
@@ -62,7 +61,7 @@ def from_cbor(tx_cbor: str, network: bool) -> dict:
     """
     # resolve the data from the cbor
     data = tx_draft_to_resolved(tx_cbor)
-    
+
     # we just need the body here
     txBody = data[0]
     
@@ -125,11 +124,12 @@ def from_cbor(tx_cbor: str, network: bool) -> dict:
                     if len(assets) == 0:
                         second = int(lovelace)
                     else:
-                        # build out the assets then create the list
+                        # build out the assets then create the asset list
                         tkns = {}
                         for asset in assets:
                             tkns[to_bytes(asset['policy_id'])] = {}
                             tkns[to_bytes(asset['policy_id'])][to_bytes(asset['asset_name'])] = int(asset['quantity'])
+                        # the form for assets is a list
                         second = [int(lovelace), tkns]
                     resolved[1] = second
                     
