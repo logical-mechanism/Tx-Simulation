@@ -8,6 +8,16 @@ import requests
 
 
 def query_tx_with_koios(hashes: list, network: bool) -> list:
+    """Uses Koios to query the transaction information from a list of
+    transaction hashes. The return order may not match the input order.
+
+    Args:
+        hashes (list): The list of tx hashes.
+        network (bool): The network flag.
+
+    Returns:
+        list: A list of transaction information.
+    """
     # mainnet and preprod only
     subdomain = "api" if network is True else "preprod"
 
