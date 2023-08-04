@@ -2,12 +2,13 @@ import json
 import os
 import subprocess
 import tempfile
+from typing import Any
 
 import cbor2
 import requests
 
 
-def query_tx_with_koios(hashes: list, network: bool) -> None:
+def query_tx_with_koios(hashes: list, network: bool) -> list:
     # mainnet and preprod only
     subdomain = "api" if network is True else "preprod"
 
@@ -23,11 +24,11 @@ def query_tx_with_koios(hashes: list, network: bool) -> None:
     return requests.post('https://' + subdomain + '.koios.rest/api/v0/tx_info', headers=headers, json=json_data).json()
 
 
-def to_bytes(s: str):
+def to_bytes(s: str) -> bytes:
     # Convert the string to bytes and prepend with 'h' to indicate hexadecimal format
     return bytes.fromhex(s)
 
-def tx_draft_to_resolved(draft: str):
+def tx_draft_to_resolved(draft: str) -> Any:
     # return the data from the cbor for parsing
     return cbor2.loads(bytes.fromhex(draft))
 
