@@ -25,7 +25,7 @@ def query_tx_with_koios(hashes: list, network: bool) -> list:
 
     Args:
         hashes (list): The list of tx hashes.
-        network (bool): The network flag.
+        network (bool): The network flag, mainnet (True) or preprod (False).
 
     Returns:
         list: A list of transaction information.
@@ -50,10 +50,12 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
 
     Args:
         tx_draft_path (str): The path to the tx.draft file.
-        network (bool): The network flag, mainnet (True) or preprod (False)
+        network (bool): The network flag, mainnet (True) or preprod (False).
+        debug (bool, optional): Debug prints to console. Defaults to False.
+        aiken_path (str, optional): The path to aiken. Defaults to 'aiken'.
 
     Returns:
-        dict: A dictionary of the cpu and mem units or an empty dict.
+        dict: Either an empty dictionary or a dictionary of the cpu and mem units.
     """
     # get cborHex from tx draft
     with open(tx_draft_path, 'r') as file:
@@ -67,10 +69,12 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
 
     Args:
         tx_cbor (str): The transaction cbor.
-        network (bool): The network flag, mainnet (True) or preprod (False)
+        network (bool): The network flag, mainnet (True) or preprod (False).
+        debug (bool, optional): Debug prints to console. Defaults to False.
+        aiken_path (str, optional): The path to aiken. Defaults to 'aiken'.
 
     Returns:
-        dict: A dictionary of the cpu and mem units or an empty dict.
+        dict: Either an empty dictionary or a dictionary of the cpu and mem units.
     """
     # resolve the data from the cbor
     data = tx_draft_to_resolved(tx_cbor)
@@ -83,7 +87,8 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     input_cbor = cbor2.dumps(inputs).hex()
 
     # we now need to loop all the input hashes to resolve their outputs
-    tx_hashes = [x[0].hex() for x in inputs]
+    # utxo inputs have the form [tx_hash, index]
+    tx_hashes = [utxo[0].hex() for utxo in inputs]
     result = query_tx_with_koios(tx_hashes, network)
 
     # build out the list of resolved input outputs
