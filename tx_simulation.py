@@ -214,22 +214,23 @@ if __name__ == "__main__":
 
     network = False
     debug = False
-
+    
+    aiken_path = 'aiken'
     #
     # Single tx draft test
     #
 
-    # tx_draft_path = target_folder+"/tx1.draft"
-    # required_units = from_file(tx_draft_path, network, debug)
+    # tx_draft_path = target_folder+"/tx8.draft"
+    # required_units = from_file(tx_draft_path, network, debug, aiken_path)
     # print(required_units)
 
     #
     # All tx draft test
-    #
+    # #
     draft_files = glob.glob(os.path.join(target_folder, "*.draft"))
     for f in draft_files:
         print(os.path.basename(f))
-        required_units = from_file(f, network, debug)
+        required_units = from_file(f, network, debug, aiken_path)
         print(required_units)
         # sleep to not hit the rate limit
         sleep(0.1)
