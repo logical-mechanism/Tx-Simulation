@@ -199,7 +199,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
         return json.loads(output.stdout)
     except subprocess.CalledProcessError as e:
         # the simulation failed in some way
-        return {}
+        return [{}]
 
 
 if __name__ == "__main__":
@@ -209,24 +209,30 @@ if __name__ == "__main__":
     or pass in the cbor from the tx file.
 
     """
+    # Get the working directory and find the test data
     main_script_dir = os.getcwd()
-    target_folder = os.path.join(main_script_dir, 'test_data')
-
-    network = False
-    debug = False
+    target_folder   = os.path.join(main_script_dir, 'test_data')
     
+    network = False # pre-production environment
+    debug   = False # print tx cbor to console
+
     aiken_path = 'aiken'
+
+    ###########################################################################
     #
     # Single tx draft test
     #
-
-    # tx_draft_path = target_folder+"/tx8.draft"
+    ###########################################################################
+    # tx_draft_path = target_folder+"/tx9.draft"
     # required_units = from_file(tx_draft_path, network, debug, aiken_path)
     # print(required_units)
+    ###########################################################################
 
+    ###########################################################################
     #
     # All tx draft test
-    # #
+    #
+    ###########################################################################
     draft_files = glob.glob(os.path.join(target_folder, "*.draft"))
     for f in draft_files:
         print(os.path.basename(f))
@@ -234,3 +240,4 @@ if __name__ == "__main__":
         print(required_units)
         # sleep to not hit the rate limit
         sleep(0.1)
+    ###########################################################################

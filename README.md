@@ -1,23 +1,37 @@
 # tx_simulation
 
-Simulates a transaction using Aiken tx simulate and Koios.
+The `tx_simulation` tool facilitates transaction simulation using `aiken tx simulate` in conjunction with Koios. 
 
-The script assumes PlutusV2, reference scripts, and scripts only have datums. Specific edge cases may need to be accounted for in production.
+The simulation script assumes the contracts are implemented using PlutusV2, relies on reference script UTxOs, and operates under the assumption that within a transaction, only the scripts themselves contain datums. It's important to note that specific edge cases may need to be considered when transitioning to a production environment. Additionally, the simulation script currently supports both the mainnet and pre-production environments but does not provide support for preview environments at this time.
+
+The tx simulation script was tested with `Python 3.10.12`, `Aiken v1.0.19-alpha`, and `Ubuntu 22.04.2 LTS`.
 
 ## Requirements
-Aiken needs to be installed and on path.
+
+It is highly suggested that Aiken is installed and on path.
 
 [Install Aiken](https://aiken-lang.org/installation-instructions)
 
-The script was tested with `Python 3.10.12` and `Ubuntu 22.04.2 LTS`.
+A precompile version of Aiken may be used with the `from_file` or `from_cbor` functions. 
+
+## Development
+
+It is highly suggested to work on `tx_simulation` inside a virtual environment.
 
 ```bash
+# Create a Python virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+
+# Install required Python packages
 pip install -r requirements.txt
 ```
 
 ## Use
 
-The script can simulate from a tx draft file or from pure tx cbor.
+The `tx_simulation` script can simulate a transaction from a draft file or from pure cbor.
 
 ```bash
 import tx_simulation
@@ -29,25 +43,23 @@ required_units = tx_simulation.from_file('tx.draft')
 required_units = tx_simulation.from_cbor(tx_cbor)
 ```
 
-It will either return a dictionary of the units or the empty dict if it fails. An output example is shown below.
+It will either return a list of dictionaries of the units or a list with an empty dict if it fails. An output example is shown below.
 
 ```json
-{
-    'mem': 443656, 
-    'cpu': 171399581
-}
+[{
+    "mem": 443656, 
+    "cpu": 171399581
+}]
 ```
 
 ## Test Data
 
-Inside the `test_data` folder are some example tx drafts. The script can be tested with one of them by running the command below.
+Inside the `test_data` folder are some example tx drafts. The script can be tested by running the command below.
 
 ```bash
 python tx_simulation.py
 ```
 
-Change which tx draft for different tests.
-
 ## Known Issues
 
-Scripts involving fee logic seem to always error.
+Any scripts involving fee logic always error resulting in an empty dictionary being returned.
