@@ -4,7 +4,7 @@ The `tx_simulation` tool facilitates transaction simulation using `aiken tx simu
 
 The simulation script assumes the contracts are implemented using PlutusV2, relies on reference script UTxOs, and operates under the assumption that within a transaction, only the scripts themselves contain datums. It's important to note that specific edge cases may need to be considered when transitioning to a production environment. Additionally, the simulation script currently supports both the mainnet and pre-production environments but does not provide support for preview environments at this time.
 
-The tx simulation script was tested with `Python 3.10.12`, `Aiken v1.0.19-alpha`, and `Ubuntu 22.04.2 LTS`.
+The tx simulation script was tested with `Python 3.10.12`, `Aiken v1.0.21`, and `Ubuntu 22.04.2 LTS`.
 
 ## Requirements
 
@@ -48,6 +48,7 @@ required_units = tx_simulation.from_cbor(tx_cbor)
 
 It will either return a list of dictionaries of the units or a list with an empty dict if it fails. An output example is shown below.
 
+Success example
 ```json
 [{
     "mem": 443656, 
@@ -55,12 +56,17 @@ It will either return a list of dictionaries of the units or a list with an empt
 }]
 ```
 
-## Test Data
+Failure example
+```json
+[{}]
+```
 
-Inside the `test_data` folder are some example tx drafts. The script can be tested by running the command below.
+## Testing
+
+Inside the `tests` folder are pytest tests for `tx_simulation.py`. The tests can be ran with the command below.
 
 ```bash
-python tx_simulation.py
+pytest
 ```
 
 ## Known Issues

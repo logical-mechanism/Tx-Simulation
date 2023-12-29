@@ -11,7 +11,10 @@ import requests
 
 def to_bytes(s: str) -> bytes:
     # Convert the string to bytes and prepend with 'h' to indicate hexadecimal format
-    return bytes.fromhex(s)
+    try:
+        return bytes.fromhex(s)
+    except ValueError:
+        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
 
 
 def tx_draft_to_resolved(draft: str) -> list:
@@ -96,6 +99,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     # the order of the resolved outputs matter so we match to the inputs
     for utxo in inputs:
         tx_hash = utxo[0].hex()
+        print(tx_hash)
 
         # now find the result for that hash
         for tx in result:
