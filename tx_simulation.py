@@ -65,7 +65,7 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
 
 
 def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
-    """Simulate a tx from tx cbor for some network. 
+    """Simulate a tx from tx cbor for some network.
 
     Args:
         tx_cbor (str): The transaction cbor.
@@ -112,7 +112,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                     # lets build out the resolved output
 
                     # assume that anything with a datum is a contract
-                    if utxo['inline_datum'] != None:
+                    if utxo['inline_datum'] is not None:
                         network_flag = "71" if network is True else "70"
                         pkh = network_flag + utxo['payment_addr']['cred']
                         pkh = to_bytes(pkh)
@@ -128,7 +128,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                         pkh = to_bytes(pkh)
                         resolved[0] = pkh
 
-                    if utxo['reference_script'] != None:
+                    if utxo['reference_script'] is not None:
                         # assume plutus v2 reference scripts
                         cbor_ref = to_bytes(utxo['reference_script']['bytes'])
                         cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
@@ -147,9 +147,11 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                         # build out the assets then create the asset list
                         tkns = {}
                         for asset in assets:
-                            tkns[to_bytes(asset['policy_id'])] = {}
-                            tkns[to_bytes(asset['policy_id'])][to_bytes(
-                                asset['asset_name'])] = int(asset['quantity'])
+                            pid = to_bytes(asset['policy_id'])
+                            tkn = to_bytes(asset['asset_name'])
+                            amt = int(asset['quantity'])
+                            tkns[pid] = {}
+                            tkns[pid][tkn] = amt
 
                         # the form for assets is a list
                         value = [int(lovelace), tkns]
@@ -197,7 +199,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
         os.remove(temp_output_file_path)
 
         return json.loads(output.stdout)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         # the simulation failed in some way
         return [{}]
 
@@ -211,10 +213,10 @@ if __name__ == "__main__":
     """
     # Get the working directory and find the test data
     main_script_dir = os.getcwd()
-    target_folder   = os.path.join(main_script_dir, 'test_data')
-    
-    network = False # pre-production environment
-    debug   = False # print tx cbor to console
+    target_folder = os.path.join(main_script_dir, 'test_data')
+
+    network = False  # pre-production environment
+    debug = False  # print tx cbor to console
 
     aiken_path = 'aiken'
 

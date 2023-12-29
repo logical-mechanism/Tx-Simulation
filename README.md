@@ -23,7 +23,10 @@ It is highly suggested to work on `tx_simulation` inside a virtual environment.
 python3 -m venv venv
 
 # Activate the virtual environment
-source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+source venv/bin/activate
+
+# On Windows, use: 
+# venv\Scripts\activate
 
 # Install required Python packages
 pip install -r requirements.txt
