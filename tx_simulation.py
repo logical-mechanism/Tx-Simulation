@@ -25,12 +25,28 @@ def to_bytes(s: str) -> bytes:
         raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
 
 
-def tx_draft_to_resolved(draft: str) -> list:
-    # return the data from the cbor for parsing
-    return cbor2.loads(bytes.fromhex(draft))
+def tx_draft_to_resolved(draft: str) -> list[any]:
+    """ Decodes a hexadecimal string representing CBOR data into a Python object.
+
+    Args:
+        draft (str): A hexadecimal string representing CBOR data.
+
+    Returns:
+        list: A Python object obtained by decoding the CBOR data.
+
+    Raises:
+        ValueError: If the input string is not a valid hexadecimal or if the
+                    decoded bytes are not valid CBOR data.
+    """
+    try:
+        decoded_data = cbor2.loads(bytes.fromhex(draft))
+    except ValueError:
+        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
+
+    return decoded_data
 
 
-def query_tx_with_koios(hashes: list[str], network: bool) -> list:
+def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
     """Uses Koios to query the transaction information from a list of
     transaction hashes. The return order may not match the input order.
 
@@ -52,7 +68,7 @@ def query_tx_with_koios(hashes: list[str], network: bool) -> list:
         'accept': 'application/json',
         'content-type': 'application/json',
     }
-    
+
     url = 'https://' + subdomain + '.koios.rest/api/v0/tx_info'
     # return the tx information for a list of transactions, (the inputs)
     return requests.post(url=url, headers=headers, json=json_data).json()
@@ -256,4 +272,5 @@ if __name__ == "__main__":
         print(required_units)
         # sleep to not hit the rate limit
         sleep(0.1)
+    ###########################################################################
     ###########################################################################
