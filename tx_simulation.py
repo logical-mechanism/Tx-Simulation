@@ -10,7 +10,15 @@ import requests
 
 
 def to_bytes(s: str) -> bytes:
-    # Convert the string to bytes and prepend with 'h' to indicate hexadecimal format
+    """ Convert the string to bytes and prepend with 'h' to indicate hexadecimal format.
+    The bytes representation will be returned else a ValueError is raised.
+
+    Args:
+        s (str): The hexadecimal string used in byte conversion
+
+    Returns:
+        bytes: A bytestring in proper cbor format.
+    """
     try:
         return bytes.fromhex(s)
     except ValueError:
@@ -22,7 +30,7 @@ def tx_draft_to_resolved(draft: str) -> list:
     return cbor2.loads(bytes.fromhex(draft))
 
 
-def query_tx_with_koios(hashes: list, network: bool) -> list:
+def query_tx_with_koios(hashes: list[str], network: bool) -> list:
     """Uses Koios to query the transaction information from a list of
     transaction hashes. The return order may not match the input order.
 
@@ -44,8 +52,10 @@ def query_tx_with_koios(hashes: list, network: bool) -> list:
         'accept': 'application/json',
         'content-type': 'application/json',
     }
+    
+    url = 'https://' + subdomain + '.koios.rest/api/v0/tx_info'
     # return the tx information for a list of transactions, (the inputs)
-    return requests.post('https://' + subdomain + '.koios.rest/api/v0/tx_info', headers=headers, json=json_data).json()
+    return requests.post(url=url, headers=headers, json=json_data).json()
 
 
 def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
