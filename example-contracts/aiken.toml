@@ -1,0 +1,19 @@
+name = "logicalmechanism/example-contracts"
+version = "1.0.0"
+license = "Apache-2.0"
+description = "Aiken contracts for project 'logicalmechanism/example-contracts'"
+
+[repository]
+user = "logicalmechanism"
+project = "example-contracts"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "main"
+source = "github"
+
+[[dependencies]]
+name = "logicalmechanism/assist"
+version = "main"
+source = "github"
