@@ -276,7 +276,8 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     """
     # # resolve the input and output from the cbor
     inputs, resolved_inputs_outputs = resolve_inputs_and_outputs(tx_cbor, network)
-    input_cbor = cbor2.dumps(inputs).hex()
+    prepare_inputs = [(to_bytes(utxo[0]), utxo[1]) for utxo in inputs]
+    input_cbor = cbor2.dumps(prepare_inputs).hex()
 
     # build out the list of outputs
     outputs = []
