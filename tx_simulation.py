@@ -124,8 +124,11 @@ def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | 
     if len(assets) == 0:
         value = int(lovelace)
     else:
-        # build out the assets then create the asset list
+        # build out the token dictionary
         tokens = {}
+
+        # an asset has the form
+        # {"policy_id": "acab", "asset_name": "cafe", "quantity": 1}
         for asset in assets:
             pid = to_bytes(asset['policy_id'])
             tkn = to_bytes(asset['asset_name'])
@@ -133,12 +136,130 @@ def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | 
             # initialize the dict
             if pid not in tokens:
                 tokens[pid] = {}
+
             # its already a dict
-            tokens[pid][tkn] = amt
+            if tkn in tokens[pid]:
+                # add to the value
+                tokens[pid][tkn] += amt
+            else:
+                # initialize the value
+                tokens[pid][tkn] = amt
+
+        # Remove tokens with a net amount of zero
+        for pid in list(tokens.keys()):  # Iterate over a copy of the keys
+            for tkn in list(tokens[pid].keys()):  # Iterate over a copy of the keys
+
+                # delete any token that has a zero amount
+                if tokens[pid][tkn] == 0:
+                    del tokens[pid][tkn]
+
+            # If no tokens left under this pid, remove the pid entry
+            if not tokens[pid]:
+                del tokens[pid]
 
         # the form for assets is a list
         value = [int(lovelace), tokens]
     return value
+
+
+def build_resolved_output(inputs: list[tuple[str, int]], tx_id: str, outputs: list[dict], network: bool) -> dict:
+    """
+    Build a resolved output dictionary for given transaction outputs.
+
+    Args:
+        inputs (list[tuple[str, int]]): A list of tuples, each containing transaction ID and index.
+        tx_id (str): The transaction ID to resolve outputs for.
+        outputs (list[dict]): A list of dictionaries, each representing a transaction output.
+        network (bool): Flag indicating the network type (True for mainnet, False pre-preproduction).
+
+    Returns:
+        Dict: A dictionary representing the resolved output.
+    """
+    resolved = {}
+    for txo in outputs['outputs']:
+        idx = txo['tx_index']
+
+        # we found it
+        if (tx_id, idx) in inputs:
+            # lets build out the resolved output
+
+            # assume that anything with a datum is a contract
+            # zero index must exist
+            # one index must exist
+            # 2 and 3 are optional
+            if txo['inline_datum'] is not None:
+                network_flag = "71" if network is True else "70"
+                pkh = network_flag + txo['payment_addr']['cred']
+                pkh = to_bytes(pkh)
+                resolved[0] = pkh
+
+                # put the inline datum in the correct format
+                cbor_datum = to_bytes(txo['inline_datum']['bytes'])
+                resolved[2] = [1, cbor2.CBORTag(24, cbor_datum)]
+            else:
+                # simple payment
+                network_flag = "61" if network is True else "60"
+                pkh = network_flag + txo['payment_addr']['cred']
+                pkh = to_bytes(pkh)
+                resolved[0] = pkh
+
+            if txo['reference_script'] is not None:
+                # assume plutus v2 reference scripts
+                cbor_ref = to_bytes(txo['reference_script']['bytes'])
+                cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
+
+                # put the reference script in the correct format
+                resolved[3] = cbor2.CBORTag(24, cbor_ref)
+
+            # now we need the value element
+            lovelace = txo['value']
+            assets = txo['asset_list']
+
+            # lovelace only is int, else it has assets
+            value = resolve_value_from_input_output(lovelace, assets)
+            resolved[1] = value
+            # we got all the information required for this tx id
+            break
+    return resolved
+
+
+def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: str = 'aiken') -> list[dict]:
+    # try to simulate the tx and return the results else return an empty dict
+    try:
+        # use some temp files that get deleted later
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_tx_file:
+            temp_tx_file.write(tx_cbor)
+            temp_tx_file_path = temp_tx_file.name
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_input_file:
+            temp_input_file.write(input_cbor)
+            temp_input_file_path = temp_input_file.name
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_output_file:
+            temp_output_file.write(output_cbor)
+            temp_output_file_path = temp_output_file.name
+
+        # the default value assumes aiken to be on path
+        # or it uses the aiken path
+        output = subprocess.run(
+            [
+                aiken_path, 'tx', 'simulate',
+                temp_tx_file_path,
+                temp_input_file_path,
+                temp_output_file_path
+            ],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        # this should remove the temp files
+        os.remove(temp_tx_file_path)
+        os.remove(temp_input_file_path)
+        os.remove(temp_output_file_path)
+
+        return json.loads(output.stdout)
+    except subprocess.CalledProcessError:
+        # the simulation failed in some way
+        return [{}]
 
 
 def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> list[dict]:
@@ -164,57 +285,19 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     for utxo in inputs:
         input_tx_hash = utxo[0]
 
-        # now find the result for that hash
+        # now find the input output for that hash
         for tx_input_output in resolved_inputs_outputs:
             that_tx_hash = tx_input_output['tx_hash']
             if input_tx_hash != that_tx_hash:
                 # have to match the hashes so the we can resolve a specific tx input
                 continue
 
-            resolved = {}
-            for txo in tx_input_output['outputs']:
-                idx = txo['tx_index']
-
-                # we found it
-                if (to_bytes(input_tx_hash), idx) in inputs:
-                    # lets build out the resolved output
-
-                    # assume that anything with a datum is a contract
-                    if utxo['inline_datum'] is not None:
-                        network_flag = "71" if network is True else "70"
-                        pkh = network_flag + txo['payment_addr']['cred']
-                        pkh = to_bytes(pkh)
-                        resolved[0] = pkh
-
-                        # put the inline datum in the correct format
-                        cbor_datum = to_bytes(utxo['inline_datum']['bytes'])
-                        resolved[2] = [1, cbor2.CBORTag(24, cbor_datum)]
-                    else:
-                        # simple payment
-                        network_flag = "61" if network is True else "60"
-                        pkh = network_flag + utxo['payment_addr']['cred']
-                        pkh = to_bytes(pkh)
-                        resolved[0] = pkh
-
-                    if utxo['reference_script'] is not None:
-                        # assume plutus v2 reference scripts
-                        cbor_ref = to_bytes(utxo['reference_script']['bytes'])
-                        cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
-
-                        # put the reference script in the correct format
-                        resolved[3] = cbor2.CBORTag(24, cbor_ref)
-
-                    # now we need the value element
-                    lovelace = txo['value']
-                    assets = txo['asset_list']
-
-                    # lovelace only is int, else it has assets
-                    value = resolve_value_from_input_output(lovelace, assets)
-                    resolved[1] = value
-
-                    # append it and go to the next one
-                    outputs.append(resolved)
-                    break
+            # now we have a tx input output for a given input
+            resolved = build_resolved_output(inputs, input_tx_hash, tx_input_output, network)
+            # append it and go to the next one
+            outputs.append(resolved)
+            # we break here since we built out the resolve output for a specific input
+            break
 
     # get the resolved output cbor
     output_cbor = cbor2.dumps(outputs).hex()
@@ -226,37 +309,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
         print(output_cbor, '\n')
 
     # try to simulate the tx and return the results else return an empty dict
-    try:
-        # use some temp files that get deleted later
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_tx_file:
-            temp_tx_file.write(tx_cbor)
-            temp_tx_file_path = temp_tx_file.name
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_input_file:
-            temp_input_file.write(input_cbor)
-            temp_input_file_path = temp_input_file.name
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_output_file:
-            temp_output_file.write(output_cbor)
-            temp_output_file_path = temp_output_file.name
-
-        # the default value assumes aiken to be on path
-        # or it uses the aiken path
-        output = subprocess.run(
-            [aiken_path, 'tx', 'simulate', temp_tx_file_path,
-                temp_input_file_path, temp_output_file_path],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-
-        # this should remove the temp files
-        os.remove(temp_tx_file_path)
-        os.remove(temp_input_file_path)
-        os.remove(temp_output_file_path)
-
-        return json.loads(output.stdout)
-    except subprocess.CalledProcessError:
-        # the simulation failed in some way
-        return [{}]
+    return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path)
 
 
 def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
