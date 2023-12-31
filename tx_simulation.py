@@ -162,13 +162,13 @@ def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | 
     return value
 
 
-def build_resolved_output(inputs: list[tuple[str, int]], tx_id: str, outputs: list[dict], network: bool) -> dict:
+def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network: bool) -> dict:
     """
     Build a resolved output dictionary for given transaction outputs.
 
     Args:
-        inputs (list[tuple[str, int]]): A list of tuples, each containing transaction ID and index.
-        tx_id (str): The transaction ID to resolve outputs for.
+        tx_id (str): The transaction id to resolve outputs for.
+        tx_idx (int): The transaction id index to resolve outputs for.
         outputs (list[dict]): A list of dictionaries, each representing a transaction output.
         network (bool): Flag indicating the network type (True for mainnet, False pre-preproduction).
 
@@ -177,10 +177,11 @@ def build_resolved_output(inputs: list[tuple[str, int]], tx_id: str, outputs: li
     """
     resolved = {}
     for txo in outputs['outputs']:
-        idx = txo['tx_index']
+        output_tx_id = txo['tx_hash']
+        output_tx_idx = txo['tx_index']
 
         # we found it
-        if (tx_id, idx) in inputs:
+        if (tx_id, tx_idx) == (output_tx_id, output_tx_idx):
             # lets build out the resolved output
 
             # assume that anything with a datum is a contract
@@ -285,6 +286,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     # the order of the resolved outputs matter so we match to the inputs
     for utxo in inputs:
         input_tx_hash = utxo[0]
+        input_tx_idx = utxo[1]
 
         # now find the input output for that hash
         for tx_input_output in resolved_inputs_outputs:
@@ -294,7 +296,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                 continue
 
             # now we have a tx input output for a given input
-            resolved = build_resolved_output(inputs, input_tx_hash, tx_input_output, network)
+            resolved = build_resolved_output(input_tx_hash, input_tx_idx, tx_input_output, network)
             # append it and go to the next one
             outputs.append(resolved)
             # we break here since we built out the resolve output for a specific input
