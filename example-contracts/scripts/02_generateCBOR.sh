@@ -255,8 +255,6 @@ jq -r '.cborHex' ./tmp/tx.draft > cbor/subtract_fee.cbor
 
 
 echo -e "\033[0;36m Building Multi Contract Tx \033[0m"
-always_true_ref_utxo=$(${cli} transaction txid --tx-file ./tmp/tx-always_true_contract.plutus.signed )
-single_shot_ref_utxo=$(${cli} transaction txid --tx-file ./tmp/tx-single_shot_contract.plutus.signed )
 FEE=$(${cli} transaction build \
     --babbage-era \
     --out-file ./tmp/tx.draft \
@@ -268,6 +266,12 @@ FEE=$(${cli} transaction build \
     --spending-plutus-script-v2 \
     --spending-reference-tx-in-inline-datum-present \
     --spending-reference-tx-in-redeemer-file ./data/empty-redeemer.json \
+    --tx-in ${lock_tx_in} \
+    --spending-tx-in-reference="${lock_ref_utxo}#1" \
+    --spending-plutus-script-v2 \
+    --spending-reference-tx-in-inline-datum-present \
+    --spending-reference-tx-in-redeemer-file ./data/empty-redeemer.json \
+    --tx-out="${user_address} + 3000000" \
     --tx-in ${minter_tx_in} \
     --required-signer-hash ${collat_pkh} \
     --mint="${mint_asset}" \
