@@ -1,25 +1,50 @@
-import glob
 import json
 import os
 import subprocess
 import tempfile
-from time import sleep
 
 import cbor2
 import requests
 
 
 def to_bytes(s: str) -> bytes:
-    # Convert the string to bytes and prepend with 'h' to indicate hexadecimal format
-    return bytes.fromhex(s)
+    """ Convert the string to bytes and prepend with 'h' to indicate hexadecimal format.
+    The bytes representation will be returned else a ValueError is raised.
+
+    Args:
+        s (str): The hexadecimal string used in byte conversion
+
+    Returns:
+        bytes: A bytestring in proper cbor format.
+    """
+    try:
+        return bytes.fromhex(s)
+    except ValueError:
+        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
 
 
-def tx_draft_to_resolved(draft: str) -> list:
-    # return the data from the cbor for parsing
-    return cbor2.loads(bytes.fromhex(draft))
+def tx_draft_to_resolved_cbor(draft: str) -> list[any]:
+    """ Decodes a hexadecimal string representing CBOR data into a Python object.
+
+    Args:
+        draft (str): A hexadecimal string representing CBOR data.
+
+    Returns:
+        list: A Python object obtained by decoding the CBOR data.
+
+    Raises:
+        ValueError: If the input string is not a valid hexadecimal or if the
+                    decoded bytes are not valid CBOR data.
+    """
+    try:
+        decoded_data = cbor2.loads(bytes.fromhex(draft))
+    except ValueError:
+        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
+
+    return decoded_data
 
 
-def query_tx_with_koios(hashes: list, network: bool) -> list:
+def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
     """Uses Koios to query the transaction information from a list of
     transaction hashes. The return order may not match the input order.
 
@@ -41,8 +66,253 @@ def query_tx_with_koios(hashes: list, network: bool) -> list:
         'accept': 'application/json',
         'content-type': 'application/json',
     }
+
+    url = 'https://' + subdomain + '.koios.rest/api/v0/tx_info'
     # return the tx information for a list of transactions, (the inputs)
-    return requests.post('https://' + subdomain + '.koios.rest/api/v0/tx_info', headers=headers, json=json_data).json()
+    return requests.post(url=url, headers=headers, json=json_data).json()
+
+
+def resolve_inputs_and_outputs(tx_cbor: str, network: bool) -> tuple[list[tuple[str, int]], list[dict]]:
+    """Resolves the inputs and the inputs outputs for some given tx cbor. The returned values are not in
+    any specific ordering.
+
+    Args:
+        tx_cbor (str): The transaction cbor
+        network (bool): The network flag
+
+    Raises:
+        KeyError: The inputs, collateral, and reference inputs must exist inside the tx.
+
+    Returns:
+        tuple[list[tuple[str, int]], list[dict]]: A tuple of the utxo inputs and the resolved input outputs.
+    """
+    # resolve the data from the cbor
+    data = tx_draft_to_resolved_cbor(tx_cbor)
+
+    # we just need the body here
+    try:
+        txBody = data[0]
+
+        # all the types of inputs; tx inputs, collateral, and reference
+        inputs = txBody[0] + txBody[13] + txBody[18]
+        # convert into list of tuples
+        inputs = [(utxo[0].hex(), int(utxo[1])) for utxo in inputs]
+    except KeyError:
+        raise KeyError("required tx body elements are missing")
+
+    # we now need to loop all the input hashes to resolve their outputs
+    # utxo inputs have the form [tx_hash, index]
+    tx_hashes = [utxo[0] for utxo in inputs]
+    outputs = query_tx_with_koios(tx_hashes, network)
+    return inputs, outputs
+
+
+def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | list:
+    """
+    Resolves the value from the input or output of a transaction.
+
+    Args:
+        lovelace (int): The amount in Lovelace.
+        assets (List[Dict[str, Any]]): A list of additional assets involved in the transaction.
+            Each asset is represented as a dictionary with keys for 'policy_id', 'asset_name', and 'quantity'.
+
+    Returns:
+        Union[int, List[Any]]: The resolved value. Returns an integer if only Lovelace is involved.
+            Returns a list containing the Lovelace amount and a dictionary of assets if additional assets are involved.
+    """
+    # its just an int when its lovelace only
+    if len(assets) == 0:
+        value = int(lovelace)
+    else:
+        # build out the token dictionary
+        tokens = {}
+
+        # an asset has the form
+        # {"policy_id": "acab", "asset_name": "cafe", "quantity": 1}
+        for asset in assets:
+            pid = to_bytes(asset['policy_id'])
+            tkn = to_bytes(asset['asset_name'])
+            amt = int(asset['quantity'])
+            # initialize the dict
+            if pid not in tokens:
+                tokens[pid] = {}
+
+            # its already a dict
+            if tkn in tokens[pid]:
+                # add to the value
+                tokens[pid][tkn] += amt
+            else:
+                # initialize the value
+                tokens[pid][tkn] = amt
+
+        # Remove tokens with a net amount of zero
+        for pid in list(tokens.keys()):  # Iterate over a copy of the keys
+            for tkn in list(tokens[pid].keys()):  # Iterate over a copy of the keys
+
+                # delete any token that has a zero amount
+                if tokens[pid][tkn] == 0:
+                    del tokens[pid][tkn]
+
+            # If no tokens left under this pid, remove the pid entry
+            if not tokens[pid]:
+                del tokens[pid]
+
+        # the form for assets is a list
+        value = [int(lovelace), tokens]
+    return value
+
+
+def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network: bool) -> dict:
+    """
+    Build a resolved output dictionary for given transaction outputs.
+
+    Args:
+        tx_id (str): The transaction id to resolve outputs for.
+        tx_idx (int): The transaction id index to resolve outputs for.
+        outputs (list[dict]): A list of dictionaries, each representing a transaction output.
+        network (bool): Flag indicating the network type (True for mainnet, False pre-preproduction).
+
+    Returns:
+        Dict: A dictionary representing the resolved output.
+    """
+    resolved = {}
+    for txo in outputs['outputs']:
+        output_tx_id = txo['tx_hash']
+        output_tx_idx = txo['tx_index']
+
+        # we found it
+        if (tx_id, tx_idx) == (output_tx_id, output_tx_idx):
+            # lets build out the resolved output
+
+            # assume that anything with a datum is a contract
+            # zero index must exist
+            # one index must exist
+            # 2 and 3 are optional
+            if txo['inline_datum'] is not None:
+                network_flag = "71" if network is True else "70"
+                pkh = network_flag + txo['payment_addr']['cred']
+                pkh = to_bytes(pkh)
+                resolved[0] = pkh
+
+                # put the inline datum in the correct format
+                cbor_datum = to_bytes(txo['inline_datum']['bytes'])
+                resolved[2] = [1, cbor2.CBORTag(24, cbor_datum)]
+            else:
+                # simple payment
+                network_flag = "61" if network is True else "60"
+                pkh = network_flag + txo['payment_addr']['cred']
+                pkh = to_bytes(pkh)
+                resolved[0] = pkh
+
+            if txo['reference_script'] is not None:
+                # assume plutus v2 reference scripts
+                cbor_ref = to_bytes(txo['reference_script']['bytes'])
+                cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
+
+                # put the reference script in the correct format
+                resolved[3] = cbor2.CBORTag(24, cbor_ref)
+
+            # now we need the value element
+            lovelace = txo['value']
+            assets = txo['asset_list']
+
+            # lovelace only is int, else it has assets
+            value = resolve_value_from_input_output(lovelace, assets)
+            resolved[1] = value
+            # we got all the information required for this tx id
+            break
+    return resolved
+
+
+def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: str = 'aiken') -> list[dict]:
+    # try to simulate the tx and return the results else return an empty dict
+    try:
+        # use some temp files that get deleted later
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_tx_file:
+            temp_tx_file.write(tx_cbor)
+            temp_tx_file_path = temp_tx_file.name
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_input_file:
+            temp_input_file.write(input_cbor)
+            temp_input_file_path = temp_input_file.name
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_output_file:
+            temp_output_file.write(output_cbor)
+            temp_output_file_path = temp_output_file.name
+
+        # the default value assumes aiken to be on path
+        # or it uses the aiken path
+        output = subprocess.run(
+            [
+                aiken_path, 'tx', 'simulate',
+                temp_tx_file_path,
+                temp_input_file_path,
+                temp_output_file_path
+            ],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        # this should remove the temp files
+        os.remove(temp_tx_file_path)
+        os.remove(temp_input_file_path)
+        os.remove(temp_output_file_path)
+
+        return json.loads(output.stdout)
+    except subprocess.CalledProcessError:
+        # the simulation failed in some way
+        return [{}]
+
+
+def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> list[dict]:
+    """Simulate a tx from tx cbor for some network.
+
+    Args:
+        tx_cbor (str): The transaction cbor.
+        network (bool): The network flag, mainnet (True) or preprod (False).
+        debug (bool, optional): Debug prints to console. Defaults to False.
+        aiken_path (str, optional): The path to aiken. Defaults to 'aiken'.
+
+    Returns:
+        dict: Either an empty dictionary or a dictionary of the cpu and mem units.
+    """
+    # # resolve the input and output from the cbor
+    inputs, resolved_inputs_outputs = resolve_inputs_and_outputs(tx_cbor, network)
+    prepare_inputs = [(to_bytes(utxo[0]), utxo[1]) for utxo in inputs]
+    input_cbor = cbor2.dumps(prepare_inputs).hex()
+
+    # build out the list of outputs
+    outputs = []
+
+    # the order of the resolved outputs matter so we match to the inputs
+    for utxo in inputs:
+        input_tx_hash = utxo[0]
+        input_tx_idx = utxo[1]
+
+        # now find the input output for that hash
+        for tx_input_output in resolved_inputs_outputs:
+            that_tx_hash = tx_input_output['tx_hash']
+            if input_tx_hash != that_tx_hash:
+                # have to match the hashes so the we can resolve a specific tx input
+                continue
+
+            # now we have a tx input output for a given input
+            resolved = build_resolved_output(input_tx_hash, input_tx_idx, tx_input_output, network)
+            # append it and go to the next one
+            outputs.append(resolved)
+            # we break here since we built out the resolve output for a specific input
+            break
+
+    # get the resolved output cbor
+    output_cbor = cbor2.dumps(outputs).hex()
+
+    # attempt to debug if required
+    if debug is True:
+        print(tx_cbor, '\n')
+        print(input_cbor, '\n')
+        print(output_cbor, '\n')
+
+    # try to simulate the tx and return the results else return an empty dict
+    return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path)
 
 
 def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
@@ -62,182 +332,3 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
         data = json.load(file)
     cborHex = data['cborHex']
     return from_cbor(cborHex, network, debug, aiken_path)
-
-
-def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
-    """Simulate a tx from tx cbor for some network. 
-
-    Args:
-        tx_cbor (str): The transaction cbor.
-        network (bool): The network flag, mainnet (True) or preprod (False).
-        debug (bool, optional): Debug prints to console. Defaults to False.
-        aiken_path (str, optional): The path to aiken. Defaults to 'aiken'.
-
-    Returns:
-        dict: Either an empty dictionary or a dictionary of the cpu and mem units.
-    """
-    # resolve the data from the cbor
-    data = tx_draft_to_resolved(tx_cbor)
-
-    # we just need the body here
-    txBody = data[0]
-
-    # all the types of inputs; tx inputs, collateral, and reference
-    inputs = txBody[0] + txBody[13] + txBody[18]
-    input_cbor = cbor2.dumps(inputs).hex()
-
-    # we now need to loop all the input hashes to resolve their outputs
-    # utxo inputs have the form [tx_hash, index]
-    tx_hashes = [utxo[0].hex() for utxo in inputs]
-    result = query_tx_with_koios(tx_hashes, network)
-
-    # build out the list of resolved input outputs
-    outputs = []
-    # the order of the resolved outputs matter so we match to the inputs
-    for utxo in inputs:
-        tx_hash = utxo[0].hex()
-
-        # now find the result for that hash
-        for tx in result:
-            this_tx_hash = tx['tx_hash']
-            if tx_hash != this_tx_hash:
-                continue
-
-            resolved = {}
-            for utxo in tx['outputs']:
-                idx = utxo['tx_index']
-
-                # we found it
-                if [to_bytes(tx_hash), idx] in inputs:
-                    # lets build out the resolved output
-
-                    # assume that anything with a datum is a contract
-                    if utxo['inline_datum'] != None:
-                        network_flag = "71" if network is True else "70"
-                        pkh = network_flag + utxo['payment_addr']['cred']
-                        pkh = to_bytes(pkh)
-                        resolved[0] = pkh
-
-                        # put the inline datum in the correct format
-                        cbor_datum = to_bytes(utxo['inline_datum']['bytes'])
-                        resolved[2] = [1, cbor2.CBORTag(24, cbor_datum)]
-                    else:
-                        # simple payment
-                        network_flag = "61" if network is True else "60"
-                        pkh = network_flag + utxo['payment_addr']['cred']
-                        pkh = to_bytes(pkh)
-                        resolved[0] = pkh
-
-                    if utxo['reference_script'] != None:
-                        # assume plutus v2 reference scripts
-                        cbor_ref = to_bytes(utxo['reference_script']['bytes'])
-                        cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
-
-                        # put the reference script in the correct format
-                        resolved[3] = cbor2.CBORTag(24, cbor_ref)
-
-                    # now we need the value element
-                    lovelace = utxo['value']
-                    assets = utxo['asset_list']
-
-                    # its just an int when its lovelace only
-                    if len(assets) == 0:
-                        value = int(lovelace)
-                    else:
-                        # build out the assets then create the asset list
-                        tkns = {}
-                        for asset in assets:
-                            tkns[to_bytes(asset['policy_id'])] = {}
-                            tkns[to_bytes(asset['policy_id'])][to_bytes(
-                                asset['asset_name'])] = int(asset['quantity'])
-
-                        # the form for assets is a list
-                        value = [int(lovelace), tkns]
-                    resolved[1] = value
-
-                    # append it and go to the next one
-                    outputs.append(resolved)
-                    break
-
-    # get the resolved output cbor
-    output_cbor = cbor2.dumps(outputs).hex()
-
-    # attempt to debug if required
-    if debug is True:
-        print(tx_cbor, '\n')
-        print(input_cbor, '\n')
-        print(output_cbor, '\n')
-
-    # try to simulate the tx and return the results else return an empty dict
-    try:
-        # use some temp files that get deleted later
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_tx_file:
-            temp_tx_file.write(tx_cbor)
-            temp_tx_file_path = temp_tx_file.name
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_input_file:
-            temp_input_file.write(input_cbor)
-            temp_input_file_path = temp_input_file.name
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_output_file:
-            temp_output_file.write(output_cbor)
-            temp_output_file_path = temp_output_file.name
-
-        # the default value assumes aiken to be on path
-        # or it uses the aiken path
-        output = subprocess.run(
-            [aiken_path, 'tx', 'simulate', temp_tx_file_path,
-                temp_input_file_path, temp_output_file_path],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-
-        # this should remove the temp files
-        os.remove(temp_tx_file_path)
-        os.remove(temp_input_file_path)
-        os.remove(temp_output_file_path)
-
-        return json.loads(output.stdout)
-    except subprocess.CalledProcessError as e:
-        # the simulation failed in some way
-        return [{}]
-
-
-if __name__ == "__main__":
-    """
-
-    Pass in some tx.draft file that the cardano-cli created into the tx simulation
-    or pass in the cbor from the tx file.
-
-    """
-    # Get the working directory and find the test data
-    main_script_dir = os.getcwd()
-    target_folder   = os.path.join(main_script_dir, 'test_data')
-    
-    network = False # pre-production environment
-    debug   = False # print tx cbor to console
-
-    aiken_path = 'aiken'
-
-    ###########################################################################
-    #
-    # Single tx draft test
-    #
-    ###########################################################################
-    # tx_draft_path = target_folder+"/tx9.draft"
-    # required_units = from_file(tx_draft_path, network, debug, aiken_path)
-    # print(required_units)
-    ###########################################################################
-
-    ###########################################################################
-    #
-    # All tx draft test
-    #
-    ###########################################################################
-    draft_files = glob.glob(os.path.join(target_folder, "*.draft"))
-    for f in draft_files:
-        print(os.path.basename(f))
-        required_units = from_file(f, network, debug, aiken_path)
-        print(required_units)
-        # sleep to not hit the rate limit
-        sleep(0.1)
-    ###########################################################################

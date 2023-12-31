@@ -1,0 +1,1 @@
+/home/logic/Documents/Work/LogicalMechanism/testnet-node/node/db-testnet/node.socket
