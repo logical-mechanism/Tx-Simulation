@@ -33,7 +33,7 @@ echo -e "\033[0;33m\nStart Building Tx Chain \033[0m"
 for contract in $(ls "../contracts"/* | sort -V)
 do
     echo -e "\033[1;37m --------------------------------------------------------------------------------\033[0m"
-    echo -e "\033[1;35m ${contract}\033[0m" 
+    echo -e "\033[1;35m\n${contract}\033[0m" 
     file_name=$(basename "$contract")
     # Increment the counter
     ((counter++)) || true
@@ -88,9 +88,10 @@ do
         ${network}
 
     ref_tx_in=$(${cli} transaction txid --tx-body-file ./tmp/tx.draft)#0
-    echo $ref_tx_in
+    echo Next UTxO: $ref_tx_in
 done
 
+echo -e "\033[1;37m\ --------------------------------------------------------------------------------\033[0m"
 # now submit them in that order
 for contract in $(ls "../contracts"/* | sort -V)
 do
