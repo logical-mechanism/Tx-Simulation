@@ -9,6 +9,7 @@ def test_build_resolved_outputs():
     inputs, resolved_inputs_outputs = resolve_inputs_and_outputs(valid_hex_cbor, network)
     # the order of the resolved outputs matter so we match to the inputs
     input_tx_hash = inputs[0][0]
+    input_tx_idx = inputs[0][1]
     # now find the input output for that hash
     for tx_input_output in resolved_inputs_outputs:
         that_tx_hash = tx_input_output['tx_hash']
@@ -17,7 +18,7 @@ def test_build_resolved_outputs():
             continue
 
         # now we have a tx input output for a given input
-        resolved = build_resolved_output(inputs, input_tx_hash, tx_input_output, network)
+        resolved = build_resolved_output(input_tx_hash, input_tx_idx, tx_input_output, network)
         break
     assert 0 in resolved
     assert 1 in resolved
@@ -31,6 +32,7 @@ def test_build_resolved_outputs_wrong_network():
     inputs, resolved_inputs_outputs = resolve_inputs_and_outputs(valid_hex_cbor, network)
     # the order of the resolved outputs matter so we match to the inputs
     input_tx_hash = inputs[0][0]
+    input_tx_idx = inputs[0][1]
     # now find the input output for that hash
     for tx_input_output in resolved_inputs_outputs:
         that_tx_hash = tx_input_output['tx_hash']
@@ -39,6 +41,6 @@ def test_build_resolved_outputs_wrong_network():
             continue
 
         # now we have a tx input output for a given input
-        resolved = build_resolved_output(inputs, input_tx_hash, tx_input_output, network)
+        resolved = build_resolved_output(input_tx_hash, input_tx_idx, tx_input_output, network)
         break
     assert not resolved
