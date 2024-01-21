@@ -42,16 +42,6 @@ aiken blueprint convert -v single_shot.params > contracts/single_shot_contract.p
 cardano-cli transaction policyid --script-file contracts/single_shot_contract.plutus > hashes/single_shot.hash
 echo -e "\033[1;33m Single Shot Hash: $(cat hashes/single_shot.hash) \033[0m"
 
-# build the stake contract
-echo -e "\033[1;33m\nBuilding Stake Contract \033[0m"
-poolId="1e3105f23f2ac91b3fb4c35fa4fe301421028e356e114944e902005b"
-aiken blueprint convert -v staking.params > contracts/stake_contract.plutus
-cardano-cli stake-address registration-certificate --stake-script-file contracts/stake_contract.plutus --out-file certs/stake.cert
-cardano-cli stake-address deregistration-certificate --stake-script-file contracts/stake_contract.plutus --out-file certs/de-stake.cert
-cardano-cli stake-address delegation-certificate --stake-script-file contracts/stake_contract.plutus --stake-pool-id ${poolId} --out-file certs/deleg.cert
-cardano-cli transaction policyid --script-file contracts/stake_contract.plutus > hashes/stake.hash
-echo -e "\033[1;33m Staking Hash: $(cat hashes/stake.hash) \033[0m"
-
 echo -e "\033[1;33m\nBuilding Subtract Fee Contract \033[0m"
 aiken blueprint convert -v subtract_fee.params > contracts/subtract_fee_contract.plutus
 cardano-cli transaction policyid --script-file contracts/subtract_fee_contract.plutus > hashes/subtract_fee.hash

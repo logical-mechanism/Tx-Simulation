@@ -9,6 +9,7 @@ mkdir -p ./tmp
 ${cli} query protocol-parameters ${network} --out-file ./tmp/protocol.json
 ${cli} query tip ${network} | jq
 
+stake_key="stake_test1uzl65wzu364hh0wxex94qsf5xkeaq2mnmc7xgnsnsjuqr4qruvxwu"
 
 # Loop through each file in the directory
 for contract in "../contracts"/*
@@ -16,10 +17,14 @@ do
     echo -e "\033[1;37m --------------------------------------------------------------------------------\033[0m"
     echo -e "\033[1;35m ${contract}\033[0m" 
     script_address=$(${cli} address build --payment-script-file ${contract} ${network})
+    script_address_base=$(${cli} address build --payment-script-file ${contract} --stake-address ${stake_key} ${network})
     echo -e "\n \033[1;35m ${script_address} \033[0m \n";
     file_name=$(basename "$contract")
     ${cli} query utxo --address ${script_address} ${network}
+    echo -e "\n \033[1;35m ${script_address_base} \033[0m \n";
+    ${cli} query utxo --address ${script_address_base} ${network}
     ${cli} query utxo --address ${script_address} ${network} --out-file ./tmp/current_${file_name}.utxo
+    ${cli} query utxo --address ${script_address_base} ${network} --out-file ./tmp/current_${file_name}_base.utxo
 
     baseLovelace=$(jq '[.. | objects | .lovelace] | add' ./tmp/current_${file_name}.utxo)
     echo -e "\033[0m"

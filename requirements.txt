@@ -1,3 +1,4 @@
+bech32==1.2.0
 cbor2==5.4.6
 certifi==2023.7.22
 charset-normalizer==3.2.0

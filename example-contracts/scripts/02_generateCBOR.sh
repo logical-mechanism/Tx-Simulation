@@ -7,6 +7,7 @@ source .env
 # get params
 ${cli} query protocol-parameters ${network} --out-file tmp/protocol.json
 
+stake_key="stake_test1uzl65wzu364hh0wxex94qsf5xkeaq2mnmc7xgnsnsjuqr4qruvxwu"
 
 # contracts
 always_false_script_path="../contracts/always_false_contract.plutus"
@@ -16,16 +17,13 @@ always_true_script_path="../contracts/always_true_contract.plutus"
 always_true_script_address=$(${cli} address build --payment-script-file ${always_true_script_path} ${network})
 
 lock_script_path="../contracts/lock_contract.plutus"
-lock_script_address=$(${cli} address build --payment-script-file ${lock_script_path} ${network})
+lock_script_address=$(${cli} address build --payment-script-file ${lock_script_path} --stake-address ${stake_key} ${network})
 
 subtract_fee_script_path="../contracts/subtract_fee_contract.plutus"
 subtract_fee_script_address=$(${cli} address build --payment-script-file ${subtract_fee_script_path} ${network})
 
 single_shot_script_path="../contracts/single_shot_contract.plutus"
 single_shot_script_address=$(${cli} address build --payment-script-file ${single_shot_script_path} ${network})
-
-staking_script_path="../contracts/stake_contract.plutus"
-staking_script_address=$(${cli} address build --payment-script-file ${staking_script_path} ${network})
 
 # get script utxo
 echo -e "\033[0;36m Gathering Always False UTxO Information  \033[0m"
