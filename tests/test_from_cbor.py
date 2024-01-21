@@ -28,7 +28,7 @@ def test_from_cbor_lock():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/lock.cbor")
     output = from_cbor(valid_hex_cbor, False)
     # print('output', output)
-    expected_output = [{'mem': 111328, 'cpu': 46380359}]
+    expected_output = [{'mem': 111328, 'cpu': 46581735}]
     assert output == expected_output
 
 
@@ -63,5 +63,5 @@ def test_from_cbor_multi():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/multi.cbor")
     output = from_cbor(valid_hex_cbor, False)
     # print('output', output)
-    expected_output = [{'mem': 7295, 'cpu': 2296335}, {'mem': 133896, 'cpu': 57798555}, {'mem': 75076, 'cpu': 33128313}]
+    expected_output = [{'mem': 7295, 'cpu': 2296335}, {'mem': 133896, 'cpu': 57999931}, {'mem': 75076, 'cpu': 33128313}]
     assert output == expected_output

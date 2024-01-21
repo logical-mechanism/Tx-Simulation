@@ -7,6 +7,8 @@ source .env
 # get params
 ${cli} query protocol-parameters ${network} --out-file tmp/protocol.json
 
+stake_key="stake_test1uzl65wzu364hh0wxex94qsf5xkeaq2mnmc7xgnsnsjuqr4qruvxwu"
+
 # contracts
 always_false_script_path="../contracts/always_false_contract.plutus"
 always_false_script_address=$(${cli} address build --payment-script-file ${always_false_script_path} ${network})
@@ -15,7 +17,7 @@ always_true_script_path="../contracts/always_true_contract.plutus"
 always_true_script_address=$(${cli} address build --payment-script-file ${always_true_script_path} ${network})
 
 lock_script_path="../contracts/lock_contract.plutus"
-lock_script_address=$(${cli} address build --payment-script-file ${lock_script_path} ${network})
+lock_script_address=$(${cli} address build --payment-script-file ${lock_script_path} --stake-address ${stake_key} ${network})
 
 subtract_fee_script_path="../contracts/subtract_fee_contract.plutus"
 subtract_fee_script_address=$(${cli} address build --payment-script-file ${subtract_fee_script_path} ${network})
@@ -63,7 +65,7 @@ IFS=' ' read -ra FEE <<< "${VALUE[1]}"
 FEE=${FEE[1]}
 echo -e "\033[1;32m Fee: \033[0m" $FEE
 #
-exit
+# exit
 #
 echo -e "\033[0;36m Signing \033[0m"
 ${cli} transaction sign \
@@ -72,7 +74,7 @@ ${cli} transaction sign \
     --out-file tmp/tx.signed \
     ${network}
 #    
-exit
+# exit
 #
 echo -e "\033[0;36m Submitting \033[0m"
 ${cli} transaction submit \

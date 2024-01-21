@@ -74,17 +74,6 @@
       "hash": "4939777c7e2e5a4b4d4890dd677883b14aa9d3a27e77613b3ae80fd7"
     },
     {
-      "title": "staking.params",
-      "redeemer": {
-        "title": "redeemer",
-        "schema": {
-          "$ref": "#/definitions/staking~1WithdrawRedeemer"
-        }
-      },
-      "compiledCode": "58d1010000323232323232323222325333006323253330083370e9002000899299980499b87480000045288a503007005153330083370e9003000899299980499b87480080045288a50300700514a0600c00260146016600800429309b2b19299980319b874800000454ccc024c01000c52616153330063370e9001000899192999805980680109924c64a66601266e1d200000113232533300e3010002149858dd7180700098038010b18038008b180580098020018b1802001118029baa001230033754002ae6955ceaab9e5573eae855d11",
-      "hash": "e8ed8ae9868fb47cf9233ed463ccea7aff9f61b91eda596ad46d19ae"
-    },
-    {
       "title": "subtract_fee.params",
       "datum": {
         "title": "this_datum",
@@ -152,43 +141,6 @@
             {
               "title": "owner",
               "$ref": "#/definitions/assist~1types~1Wallet"
-            }
-          ]
-        }
-      ]
-    },
-    "staking/StakeData": {
-      "title": "StakeData",
-      "anyOf": [
-        {
-          "title": "StakeData",
-          "dataType": "constructor",
-          "index": 0,
-          "fields": [
-            {
-              "title": "stake_cred",
-              "$ref": "#/definitions/ByteArray"
-            }
-          ]
-        }
-      ]
-    },
-    "staking/WithdrawRedeemer": {
-      "title": "WithdrawRedeemer",
-      "anyOf": [
-        {
-          "title": "Withdraw",
-          "dataType": "constructor",
-          "index": 0,
-          "fields": []
-        },
-        {
-          "title": "Delegate",
-          "dataType": "constructor",
-          "index": 1,
-          "fields": [
-            {
-              "$ref": "#/definitions/staking~1StakeData"
             }
           ]
         }
