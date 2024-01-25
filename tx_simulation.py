@@ -27,7 +27,11 @@ def run_bech32(key: str) -> str:
         hex_string = ''.join(format(x, '02x') for x in data8)
 
         # remove the network tag
-        return hex_string[2:]
+        print('hex string', hex_string)
+        if hex_string[:2] == "e0":
+            return hex_string[2:], False
+        else:
+            return hex_string[2:], True
     except TypeError:
         raise TypeError("non-standard format in run_bech32() arg at position 1")
 
@@ -219,8 +223,11 @@ def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network:
                     network_flag = "71" if network is True else "70"
                     pkh = network_flag + txo['payment_addr']['cred']
                 else:
-                    network_flag = "11" if network is True else "10"
-                    stake_key = run_bech32(txo["stake_addr"])
+                    stake_key, flag = run_bech32(txo["stake_addr"])
+                    if flag is True:
+                        network_flag = "31" if network is True else "30"
+                    else:
+                        network_flag = "11" if network is True else "10"
                     pkh = network_flag + txo['payment_addr']['cred'] + stake_key
                 # correct format
                 pkh = to_bytes(pkh)
@@ -236,7 +243,7 @@ def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network:
                     pkh = network_flag + txo['payment_addr']['cred']
                 else:
                     network_flag = "01" if network is True else "00"
-                    stake_key = run_bech32(txo["stake_addr"])
+                    stake_key, _ = run_bech32(txo["stake_addr"])
                     pkh = network_flag + txo['payment_addr']['cred'] + stake_key
                 pkh = network_flag + txo['payment_addr']['cred']
                 pkh = to_bytes(pkh)

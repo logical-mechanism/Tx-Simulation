@@ -65,3 +65,11 @@ def test_from_cbor_multi():
     # print('output', output)
     expected_output = [{'mem': 7295, 'cpu': 2296335}, {'mem': 133896, 'cpu': 57999931}, {'mem': 75076, 'cpu': 33128313}]
     assert output == expected_output
+
+
+def test_mint_and_fee():
+    valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/mint_and_fee.cbor")
+    output = from_cbor(valid_hex_cbor, False, debug=True)
+    # print('output', output)
+    expected_output = [{'mem': 757860, 'cpu': 273948262}, {'mem': 340297, 'cpu': 117528124}]
+    assert output == expected_output
