@@ -27,7 +27,7 @@ def run_bech32(key: str) -> str:
         hex_string = ''.join(format(x, '02x') for x in data8)
 
         # remove the network tag
-        print('hex string', hex_string)
+        # print('hex string', hex_string)
         if hex_string[:2] == "e0":
             return hex_string[2:], False
         else:
