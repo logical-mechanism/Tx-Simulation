@@ -27,12 +27,13 @@ def run_bech32(key: str) -> str:
         hex_string = ''.join(format(x, '02x') for x in data8)
 
         # remove the network tag
-        print('hex string', hex_string)
+
+        # print('hex string', hex_string)
         if hex_string[:2] in ["e0", "00", "60", "10"]:
-            print("stake key is not contract")
+            # print("stake key is not contract")
             return hex_string[2:], False
         else:
-            print("stake key is contract")
+            # print("stake key is contract")
             return hex_string[2:], True
     except TypeError:
         raise TypeError("non-standard format in run_bech32() arg at position 1")
