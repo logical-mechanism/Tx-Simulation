@@ -119,12 +119,13 @@ def resolve_inputs(tx_cbor: str, network: bool) -> tuple[list[tuple[str, int]], 
     # resolve the data from the cbor
     data = tx_draft_to_resolved_cbor(tx_cbor)
 
-    # we just need the body here
     try:
+        # we just need the body here
         txBody = data[0]
 
         # all the types of inputs; tx inputs, collateral, and reference
         inputs = txBody[0] + txBody[13] + txBody[18]
+
         # convert into list of tuples
         inputs = [(utxo[0].hex(), int(utxo[1])) for utxo in inputs]
     except KeyError:
@@ -356,44 +357,46 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     """
     # resolve the input and prepare the cbor
     inputs = resolve_inputs(tx_cbor, network)
-    prepare_inputs = [(to_bytes(utxo[0]), utxo[1]) for utxo in inputs]
+    prepare_inputs = [(to_bytes(txin[0]), txin[1]) for txin in inputs]
+    # print(f"Prepared Inputs: {prepare_inputs}")
     input_cbor = cbor2.dumps(prepare_inputs).hex()
+    # print(f"CBOR Input: {input_cbor}")
 
     # resolve the input's output using koios
-    tx_hashes = [utxo[0] for utxo in inputs]
+    tx_hashes = [txin[0] for txin in inputs]
     resolved_inputs_outputs = query_tx_with_koios(tx_hashes, network)
 
     # build out the list of outputs
     outputs = []
 
     # the order of the resolved outputs matter so we match to the inputs
-    for utxo in inputs:
-        input_tx_hash = utxo[0]
-        input_tx_idx = utxo[1]
+    for txin in inputs:
+        in_txid = txin[0]
+        in_txidx = txin[1]
 
         # now find the input output for that hash
-        for tx_input_output in resolved_inputs_outputs:
-            that_tx_hash = tx_input_output['tx_hash']
-            if input_tx_hash != that_tx_hash:
+        for txin_out in resolved_inputs_outputs:
+            txin_out_txid = txin_out['tx_hash']
+            if in_txid != txin_out_txid:
                 # have to match the hashes so the we can resolve a specific tx input
                 continue
 
             # now we have a tx input output for a given input
-            resolved = build_resolved_output(
-                input_tx_hash, input_tx_idx, tx_input_output, network)
+            resolved = build_resolved_output(in_txid, in_txidx, txin_out, network)
             # append it and go to the next one
             outputs.append(resolved)
             # we break here since we built out the resolve output for a specific input
             break
-
+    # print(f"Prepared Outputs: {outputs}")
     # get the resolved output cbor
     output_cbor = cbor2.dumps(outputs).hex()
+    # print(f"CBOR Output: {output_cbor}")
 
     # try to simulate the tx and return the results else return an empty dict
     return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path, debug, network)
 
 
-def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
+def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> list[dict]:
     """Simulate a tx from a tx draft file for some network.
 
     Args:
@@ -408,5 +411,10 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
     # get cborHex from tx draft
     with open(tx_draft_path, 'r') as file:
         data = json.load(file)
-    cborHex = data['cborHex']
-    return from_cbor(cborHex, network, debug, aiken_path)
+
+    try:
+        # get cbor hex from the file and proceed
+        cborHex = data['cborHex']
+        return from_cbor(cborHex, network, debug, aiken_path)
+    except KeyError:
+        return [{}]
