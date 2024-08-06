@@ -21,8 +21,7 @@ def get_first_line(file_path):
 
 def test_from_cbor_always_true():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/always_true.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
-    # print('output', output)
+    output = from_cbor(valid_hex_cbor, NETWORK, debug=False)
     expected_output = [{'mem': 7295, 'cpu': 2296335}]
     assert output == expected_output
 
@@ -78,9 +77,3 @@ def test_mint_and_fee():
     assert output == expected_output
 
 
-# def test_tx_too_big():
-#     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/big_tx.cbor")
-#     output = from_cbor(valid_hex_cbor, NETWORK, debug=False, aiken_path=AIKEN_PATH)
-#     print('output', output)
-#     expected_output = [{'mem': 757860, 'cpu': 273948262}, {'mem': 340297, 'cpu': 117528124}]
-#     assert output == expected_output

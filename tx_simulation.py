@@ -27,16 +27,13 @@ def run_bech32(key: str) -> str:
         hex_string = ''.join(format(x, '02x') for x in data8)
 
         # remove the network tag
-
-        # print('hex string', hex_string)
         if hex_string[:2] in ["e0", "00", "60", "10"]:
-            # print("stake key is not contract")
             return hex_string[2:], False
         else:
-            # print("stake key is contract")
             return hex_string[2:], True
     except TypeError:
-        raise TypeError("non-standard format in run_bech32() arg at position 1")
+        raise TypeError(
+            "non-standard format in run_bech32() arg at position 1")
 
 
 def to_bytes(s: str) -> bytes:
@@ -52,7 +49,8 @@ def to_bytes(s: str) -> bytes:
     try:
         return bytes.fromhex(s)
     except ValueError:
-        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
+        raise ValueError(
+            "non-hexadecimal number found in fromhex() arg at position 1")
 
 
 def tx_draft_to_resolved_cbor(draft: str) -> list[any]:
@@ -70,10 +68,10 @@ def tx_draft_to_resolved_cbor(draft: str) -> list[any]:
     """
     try:
         decoded_data = cbor2.loads(bytes.fromhex(draft))
+        return decoded_data
     except ValueError:
-        raise ValueError("non-hexadecimal number found in fromhex() arg at position 1")
-
-    return decoded_data
+        raise ValueError(
+            "non-hexadecimal number found in fromhex() arg at position 1")
 
 
 def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
@@ -104,7 +102,7 @@ def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
     return requests.post(url=url, headers=headers, json=json_data).json()
 
 
-def resolve_inputs_and_outputs(tx_cbor: str, network: bool) -> tuple[list[tuple[str, int]], list[dict]]:
+def resolve_inputs(tx_cbor: str, network: bool) -> tuple[list[tuple[str, int]], list[dict]]:
     """Resolves the inputs and the inputs outputs for some given tx cbor. The returned values are not in
     any specific ordering.
 
@@ -132,11 +130,7 @@ def resolve_inputs_and_outputs(tx_cbor: str, network: bool) -> tuple[list[tuple[
     except KeyError:
         raise KeyError("required tx body elements are missing")
 
-    # we now need to loop all the input hashes to resolve their outputs
-    # utxo inputs have the form [tx_hash, index]
-    tx_hashes = [utxo[0] for utxo in inputs]
-    outputs = query_tx_with_koios(tx_hashes, network)
-    return inputs, outputs
+    return inputs
 
 
 def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | list:
@@ -179,7 +173,8 @@ def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | 
 
         # Remove tokens with a net amount of zero
         for pid in list(tokens.keys()):  # Iterate over a copy of the keys
-            for tkn in list(tokens[pid].keys()):  # Iterate over a copy of the keys
+            # Iterate over a copy of the keys
+            for tkn in list(tokens[pid].keys()):
 
                 # delete any token that has a zero amount
                 if tokens[pid][tkn] == 0:
@@ -208,9 +203,9 @@ def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network:
         Dict: A dictionary representing the resolved output.
     """
     resolved = {}
-    for txo in outputs['outputs']:
-        output_tx_id = txo['tx_hash']
-        output_tx_idx = txo['tx_index']
+    for utxo in outputs['outputs']:
+        output_tx_id = utxo['tx_hash']
+        output_tx_idx = utxo['tx_index']
 
         # we found it
         if (tx_id, tx_idx) == (output_tx_id, output_tx_idx):
@@ -220,71 +215,85 @@ def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network:
             # zero index must exist
             # one index must exist
             # 2 and 3 are optional
-            if txo['inline_datum'] is not None:
-                # smart contract
-                if txo["stake_addr"] is None:
+            if utxo['inline_datum'] is not None:
+                # assumed to be a smart contract
+                if utxo["stake_addr"] is None:
+
                     # no stake key
                     network_flag = "71" if network is True else "70"
-                    pkh = network_flag + txo['payment_addr']['cred']
+
+                    # create public key hash
+                    pkh = network_flag + utxo['payment_addr']['cred']
                 else:
-                    stake_key, contract_flag = run_bech32(txo["stake_addr"])
-                    # is it a smart contract stake key?
+                    stake_key, contract_flag = run_bech32(utxo["stake_addr"])
+
+                    # is it a smart contract?
                     if contract_flag is True:
-                        # contract
+                        # it is a contract
                         network_flag = "31" if network is True else "30"
                     else:
-                        # not a contract
+                        # it is not a contract
                         network_flag = "11" if network is True else "10"
-                    pkh = network_flag + txo['payment_addr']['cred'] + stake_key
-                # correct format
+
+                    # create public key hash
+                    pkh = network_flag + utxo['payment_addr']['cred'] + stake_key
+
+                # correct format for the pkh
                 pkh = to_bytes(pkh)
                 resolved[0] = pkh
 
                 # put the inline datum in the correct format
-                cbor_datum = to_bytes(txo['inline_datum']['bytes'])
+                cbor_datum = to_bytes(utxo['inline_datum']['bytes'])
                 resolved[2] = [1, cbor2.CBORTag(24, cbor_datum)]
             else:
-                # no datum
-                if txo["stake_addr"] is None:
+                # no inline datum is present
+                if utxo["stake_addr"] is None:
+
                     # no stake key
                     network_flag = "61" if network is True else "60"
-                    pkh = network_flag + txo['payment_addr']['cred']
+
+                    # create public key hash
+                    pkh = network_flag + utxo['payment_addr']['cred']
                 else:
-                    # is the stake key a contract?
-                    stake_key, contract_flag = run_bech32(txo["stake_addr"])
-                    # is it a smart contract stake key?
+                    stake_key, contract_flag = run_bech32(utxo["stake_addr"])
+
+                    # is it a smart contract?
                     if contract_flag is True:
-                        # contract
+                        # it is a contract
                         network_flag = "21" if network is True else "20"
                     else:
-                        # not a contract
+                        # it is not a contract
                         network_flag = "01" if network is True else "00"
-                    pkh = network_flag + txo['payment_addr']['cred'] + stake_key
-                pkh = network_flag + txo['payment_addr']['cred']
+
+                    # create public key hash
+                    pkh = network_flag + utxo['payment_addr']['cred'] + stake_key
+
                 pkh = to_bytes(pkh)
                 resolved[0] = pkh
 
-            if txo['reference_script'] is not None:
+            if utxo['reference_script'] is not None:
                 # assume plutus v2 reference scripts
-                cbor_ref = to_bytes(txo['reference_script']['bytes'])
+                cbor_ref = to_bytes(utxo['reference_script']['bytes'])
                 cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
 
                 # put the reference script in the correct format
                 resolved[3] = cbor2.CBORTag(24, cbor_ref)
 
             # now we need the value element
-            lovelace = txo['value']
-            assets = txo['asset_list']
+            lovelace = utxo['value']
+            assets = utxo['asset_list']
 
             # lovelace only is int, else it has assets
             value = resolve_value_from_input_output(lovelace, assets)
             resolved[1] = value
+
             # we got all the information required for this tx id
             break
+        # this isnt the input we are looking for so continue
     return resolved
 
 
-def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: str = 'aiken', debug: bool = False) -> list[dict]:
+def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: str = 'aiken', debug: bool = False, network: bool = False) -> list[dict]:
     # try to simulate the tx and return the results else return an empty dict
     try:
         # use some temp files that get deleted later
@@ -300,36 +309,34 @@ def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: s
 
         # the default value assumes aiken to be on path
         # or it uses the aiken path
-        if debug is False:
-            output = subprocess.run(
-                [
-                    aiken_path, 'tx', 'simulate',
-                    temp_tx_file_path,
-                    temp_input_file_path,
-                    temp_output_file_path
-                ],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-        else:
-            output = subprocess.run(
-                [
-                    aiken_path, 'tx', 'simulate',
-                    temp_tx_file_path,
-                    temp_input_file_path,
-                    temp_output_file_path
-                ],
-                check=True,
-                text=True
-            )
+        func = [
+            aiken_path, 'tx', 'simulate',
+            temp_tx_file_path,
+            temp_input_file_path,
+            temp_output_file_path
+        ]
+        # this is calculated from the block after the hf
+        if network is False:
+            func += [
+                '--zero-time', '1655769600000',
+                '--zero-slot', '86400',
+            ]
+        output = subprocess.run(
+            func,
+            check=True,
+            capture_output=not debug,
+            text=True
+        )
 
         # this should remove the temp files
         os.remove(temp_tx_file_path)
         os.remove(temp_input_file_path)
         os.remove(temp_output_file_path)
-
-        return json.loads(output.stdout)
+        # if debug is on then dont json decode
+        if debug is False:
+            return json.loads(output.stdout)
+        else:
+            return [{}]
     except subprocess.CalledProcessError:
         # the simulation failed in some way
         return [{}]
@@ -347,10 +354,14 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     Returns:
         dict: Either an empty dictionary or a dictionary of the cpu and mem units.
     """
-    # # resolve the input and output from the cbor
-    inputs, resolved_inputs_outputs = resolve_inputs_and_outputs(tx_cbor, network)
+    # resolve the input and prepare the cbor
+    inputs = resolve_inputs(tx_cbor, network)
     prepare_inputs = [(to_bytes(utxo[0]), utxo[1]) for utxo in inputs]
     input_cbor = cbor2.dumps(prepare_inputs).hex()
+
+    # resolve the input's output using koios
+    tx_hashes = [utxo[0] for utxo in inputs]
+    resolved_inputs_outputs = query_tx_with_koios(tx_hashes, network)
 
     # build out the list of outputs
     outputs = []
@@ -368,7 +379,8 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                 continue
 
             # now we have a tx input output for a given input
-            resolved = build_resolved_output(input_tx_hash, input_tx_idx, tx_input_output, network)
+            resolved = build_resolved_output(
+                input_tx_hash, input_tx_idx, tx_input_output, network)
             # append it and go to the next one
             outputs.append(resolved)
             # we break here since we built out the resolve output for a specific input
@@ -377,14 +389,8 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     # get the resolved output cbor
     output_cbor = cbor2.dumps(outputs).hex()
 
-    # attempt to debug if required
-    if debug is True:
-        print(tx_cbor, '\n')
-        print(input_cbor, '\n')
-        print(output_cbor, '\n')
-
     # try to simulate the tx and return the results else return an empty dict
-    return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path, debug)
+    return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path, debug, network)
 
 
 def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> dict:
