@@ -11,7 +11,7 @@ ERROR_RESPONSE = {'code': '22P02', 'details': 'Array value must start with "{" o
 def test_query_tx_with_koios_valid_hashes(requests_mock, network):
     fake_response = GOOD_RESPONSE  # Mock response data
     subdomain = "api" if network else "preprod"
-    url = f'https://{subdomain}.koios.rest/api/v0/tx_info'
+    url = f'https://{subdomain}.koios.rest/api/v1/tx_info'
     requests_mock.post(url, json=fake_response)
 
     response = query_tx_with_koios(['valid_hash1', 'valid_hash2'], network)
@@ -22,7 +22,7 @@ def test_query_tx_with_koios_valid_hashes(requests_mock, network):
 def test_query_tx_with_koios_empty_hashes(requests_mock, network):
     fake_response = BAD_RESPONSE  # Mock response data
     subdomain = "api" if network else "preprod"
-    url = f'https://{subdomain}.koios.rest/api/v0/tx_info'
+    url = f'https://{subdomain}.koios.rest/api/v1/tx_info'
     requests_mock.post(url, json=fake_response)
 
     response = query_tx_with_koios([], network)
@@ -33,7 +33,7 @@ def test_query_tx_with_koios_empty_hashes(requests_mock, network):
 def test_query_tx_with_koios_invalid_hashes(requests_mock, network):
     fake_response = BAD_RESPONSE  # Mock response data
     subdomain = "api" if network else "preprod"
-    url = f'https://{subdomain}.koios.rest/api/v0/tx_info'
+    url = f'https://{subdomain}.koios.rest/api/v1/tx_info'
     requests_mock.post(url, json=fake_response)
 
     response = query_tx_with_koios(["acab"], network)
@@ -44,7 +44,7 @@ def test_query_tx_with_koios_invalid_hashes(requests_mock, network):
 def test_query_tx_with_koios_no_list_hashes(requests_mock, network):
     fake_response = ERROR_RESPONSE  # Mock response data
     subdomain = "api" if network else "preprod"
-    url = f'https://{subdomain}.koios.rest/api/v0/tx_info'
+    url = f'https://{subdomain}.koios.rest/api/v1/tx_info'
     requests_mock.post(url, json=fake_response)
 
     response = query_tx_with_koios("acab", network)
@@ -55,7 +55,7 @@ def test_query_tx_with_koios_no_list_hashes(requests_mock, network):
 def test_query_tx_with_koios_numbered_hashes(requests_mock, network):
     fake_response = ERROR_RESPONSE  # Mock response data
     subdomain = "api" if network else "preprod"
-    url = f'https://{subdomain}.koios.rest/api/v0/tx_info'
+    url = f'https://{subdomain}.koios.rest/api/v1/tx_info'
     requests_mock.post(url, json=fake_response)
 
     response = query_tx_with_koios([1, 2, 3], network)
