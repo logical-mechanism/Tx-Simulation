@@ -102,13 +102,12 @@ def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
     return requests.post(url=url, headers=headers, json=json_data).json()
 
 
-def resolve_inputs(tx_cbor: str, network: bool) -> tuple[list[tuple[str, int]], list[dict]]:
+def resolve_inputs(tx_cbor: str) -> tuple[list[tuple[str, int]], list[dict]]:
     """Resolves the inputs and the inputs outputs for some given tx cbor. The returned values are not in
     any specific ordering.
 
     Args:
         tx_cbor (str): The transaction cbor
-        network (bool): The network flag
 
     Raises:
         KeyError: The inputs, collateral, and reference inputs must exist inside the tx.
@@ -325,7 +324,7 @@ def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: s
         output = subprocess.run(
             func,
             check=True,
-            capture_output=not debug,
+            capture_output=False if debug is True else True,
             text=True
         )
 
@@ -356,7 +355,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
         dict: Either an empty dictionary or a dictionary of the cpu and mem units.
     """
     # resolve the input and prepare the cbor
-    inputs = resolve_inputs(tx_cbor, network)
+    inputs = resolve_inputs(tx_cbor)
     prepare_inputs = [(to_bytes(txin[0]), txin[1]) for txin in inputs]
     # print(f"Prepared Inputs: {prepare_inputs}")
     input_cbor = cbor2.dumps(prepare_inputs).hex()
@@ -440,7 +439,7 @@ def inputs_from_file(tx_draft_path: str, network: bool, debug: bool = False) -> 
         # get cbor hex from the file and proceed
         cborHex = data['cborHex']
         # resolve the inputs
-        inputs = resolve_inputs(cborHex, network)
+        inputs = resolve_inputs(cborHex)
         # prepare inputs for cbor dumping
         prepare_inputs = [(to_bytes(txin[0]), txin[1]) for txin in inputs]
         # we need the cbor hex here of the inputs
