@@ -418,3 +418,66 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
         return from_cbor(cborHex, network, debug, aiken_path)
     except KeyError:
         return [{}]
+
+
+def inputs_from_file(tx_draft_path: str, network: bool, debug: bool = False) -> tuple[str, str] | None:
+    """Given a tx draft file return the inputs in lexicographical order and the tx cbor required
+    for tx simulation.
+
+    Args:
+        tx_draft_path (str): The path to the tx.draft file
+        network (bool): The network flag, mainnet (True) or preprod (False)
+        debug (bool, optional): Debug prints to console. Defaults to False.
+
+    Returns:
+        tuple[str, str] | None: Returns the inputs and inputs cbor or None
+    """
+    # get cborHex from tx draft
+    with open(tx_draft_path, 'r') as file:
+        data = json.load(file)
+
+    try:
+        # get cbor hex from the file and proceed
+        cborHex = data['cborHex']
+        # resolve the inputs
+        inputs = resolve_inputs(cborHex, network)
+        # prepare inputs for cbor dumping
+        prepare_inputs = [(to_bytes(txin[0]), txin[1]) for txin in inputs]
+        # we need the cbor hex here of the inputs
+        inputs_cbor = cbor2.dumps(prepare_inputs).hex()
+        if debug is True:
+            print(f"Prepared Inputs: {prepare_inputs}")
+            print(f"CBOR Input: {inputs_cbor}")
+        return inputs, inputs_cbor
+    except KeyError:
+        return None
+
+
+def sort_lexicographically(*args):
+    """
+    Sorts the function inputs in lexicographical order.
+
+    Args:
+    *args: Strings to be sorted.
+
+    Returns:
+    A list of strings sorted in lexicographical order.
+    """
+    return sorted(args)
+
+
+def get_index_in_order(ordered_list, item):
+    """
+    Returns the index of the given item in the ordered list.
+
+    Args:
+    ordered_list: A list of strings sorted in lexicographical order.
+    item: The string whose index is to be found.
+
+    Returns:
+    The index of the item in the ordered list.
+    """
+    try:
+        return ordered_list.index(item)
+    except ValueError:
+        return -1  # Return -1 if the item is not found

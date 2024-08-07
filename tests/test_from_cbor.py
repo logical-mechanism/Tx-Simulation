@@ -75,5 +75,3 @@ def test_mint_and_fee():
     # print('output', output)
     expected_output = [{'mem': 757860, 'cpu': 273948262}, {'mem': 340297, 'cpu': 117528124}]
     assert output == expected_output
-
-
