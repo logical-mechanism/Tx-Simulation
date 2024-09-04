@@ -21,31 +21,31 @@ def get_first_line(file_path):
 
 def test_from_cbor_always_true():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/always_true.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK, debug=False)
-    expected_output = [{'mem': 7295, 'cpu': 2296335}]
+    output = from_cbor(valid_hex_cbor, NETWORK, debug=False, plutus_version=2)
+    expected_output = [{'mem': 7295, 'cpu': 1822407}]
     assert output == expected_output
 
 
 def test_from_cbor_lock():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/lock.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
-    expected_output = [{'mem': 111328, 'cpu': 46581735}]
+    expected_output = [{'mem': 111328, 'cpu': 42405034}]
     assert output == expected_output
 
 
 def test_from_cbor_single_shot():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/single_shot.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
-    expected_output = [{'mem': 60094, 'cpu': 24335643}]
+    expected_output = [{'mem': 60094, 'cpu': 19600721}]
     assert output == expected_output
 
 
 # this should fail
 def test_from_cbor_always_false():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/always_false.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
     expected_output = [{}]
     assert output == expected_output
@@ -54,24 +54,24 @@ def test_from_cbor_always_false():
 # this should pass
 def test_from_cbor_subtract_fee():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/subtract_fee.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
-    expected_output = [{'mem': 169749, 'cpu': 68665559}]
+    expected_output = [{'mem': 169749, 'cpu': 58808412}]
     assert output == expected_output
 
 
 # this should pass
 def test_from_cbor_multi():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/multi.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
-    expected_output = [{'mem': 7295, 'cpu': 2296335}, {'mem': 133896, 'cpu': 57999931}, {'mem': 75076, 'cpu': 33128313}]
+    expected_output = [{'mem': 7295, 'cpu': 1822407}, {'mem': 133896, 'cpu': 53176689}, {'mem': 75076, 'cpu': 28188500}]
     assert output == expected_output
 
 
 def test_mint_and_fee():
     valid_hex_cbor = get_first_line("./example-contracts/scripts/cbor/mint_and_fee.cbor")
-    output = from_cbor(valid_hex_cbor, NETWORK)
+    output = from_cbor(valid_hex_cbor, NETWORK, plutus_version=2)
     # print('output', output)
-    expected_output = [{'mem': 757860, 'cpu': 273948262}, {'mem': 340297, 'cpu': 117528124}]
+    expected_output = [{'mem': 757860, 'cpu': 228847782}, {'mem': 340297, 'cpu': 97159189}]
     assert output == expected_output
