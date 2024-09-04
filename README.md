@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 The `tx_simulation` script can simulate a transaction from a transaction file or from pure cbor.
 
-```bash
+```py
 import tx_simulation
 
 # can be used on a tx.draft file
