@@ -4,19 +4,13 @@ The `tx_simulation` tool facilitates transaction simulation using `aiken tx simu
 
 The simulation script assumes the contracts are implemented using PlutusV2, relies on reference script UTxOs, and operates under the assumption that within a transaction, only the script UTxOs have datums. `tx_simulation` currently supports the mainnet and pre-production environments. Support for the preview environment  is not implemented at this time.
 
-The tx simulation script was tested with `Python 3.10.12`, `Aiken v1.0.21`, and `Ubuntu 22.04.2 LTS`.
+The tx simulation script was tested with `Python 3.10.12`, `Aiken v1.1.0`, and `Ubuntu 22.04.2 LTS`.
 
 ## Requirements
 
 It is highly suggested that Aiken is installed and on path.
 
 [Install Aiken](https://aiken-lang.org/installation-instructions)
-
-If Aiken is already installed then upgrade to the newest version with `aikup`.
-
-```bash
-aikup
-```
 
 A precompile version of Aiken may be used with the `from_file` or `from_cbor` functions. 
 
@@ -30,9 +24,6 @@ python3 -m venv venv
 
 # Activate the virtual environment
 source venv/bin/activate
-
-# On Windows, use: 
-# venv\Scripts\activate
 
 # Install required Python packages
 pip install -r requirements.txt

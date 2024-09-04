@@ -89,7 +89,14 @@ def query_tx_with_koios(hashes: list[str], network: bool) -> list[dict]:
     subdomain = "api" if network is True else "preprod"
 
     json_data = {
-        '_tx_hashes': hashes
+        '_tx_hashes': hashes,
+        '_inputs': True,
+        "_metadata": True,
+        "_assets": True,
+        "_withdrawals": True,
+        "_certs": True,
+        "_scripts": True,
+        "_bytecode": True
     }
 
     headers = {
@@ -123,7 +130,7 @@ def resolve_inputs(tx_cbor: str) -> tuple[list[tuple[str, int]], list[dict]]:
         txBody = data[0]
 
         # all the types of inputs; tx inputs, collateral, and reference
-        inputs = txBody[0] + txBody[13] + txBody[18]
+        inputs = list(txBody[0]) + list(txBody[13]) + list(txBody[18])
 
         # convert into list of tuples
         inputs = [(utxo[0].hex(), int(utxo[1])) for utxo in inputs]
@@ -189,7 +196,7 @@ def resolve_value_from_input_output(lovelace: int, assets: list[dict]) -> int | 
     return value
 
 
-def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network: bool) -> dict:
+def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network: bool, plutus_version: int = 3) -> dict:
     """
     Build a resolved output dictionary for given transaction outputs.
 
@@ -272,9 +279,9 @@ def build_resolved_output(tx_id: str, tx_idx: int, outputs: list[dict], network:
                 resolved[0] = pkh
 
             if utxo['reference_script'] is not None:
-                # assume plutus v2 reference scripts
+                # assume plutus v3 reference scripts
                 cbor_ref = to_bytes(utxo['reference_script']['bytes'])
-                cbor_ref = to_bytes(cbor2.dumps([2, cbor_ref]).hex())
+                cbor_ref = to_bytes(cbor2.dumps([plutus_version, cbor_ref]).hex())
 
                 # put the reference script in the correct format
                 resolved[3] = cbor2.CBORTag(24, cbor_ref)
@@ -342,7 +349,7 @@ def simulate_cbor(tx_cbor: str, input_cbor: str, output_cbor: str, aiken_path: s
         return [{}]
 
 
-def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> list[dict]:
+def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str = 'aiken', plutus_version: int = 3) -> list[dict]:
     """Simulate a tx from tx cbor for some network.
 
     Args:
@@ -381,7 +388,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
                 continue
 
             # now we have a tx input output for a given input
-            resolved = build_resolved_output(in_txid, in_txidx, txin_out, network)
+            resolved = build_resolved_output(in_txid, in_txidx, txin_out, network, plutus_version)
             # append it and go to the next one
             outputs.append(resolved)
             # we break here since we built out the resolve output for a specific input
@@ -395,7 +402,7 @@ def from_cbor(tx_cbor: str, network: bool, debug: bool = False, aiken_path: str 
     return simulate_cbor(tx_cbor, input_cbor, output_cbor, aiken_path, debug, network)
 
 
-def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken') -> list[dict]:
+def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path: str = 'aiken', plutus_version: int = 3) -> list[dict]:
     """Simulate a tx from a tx draft file for some network.
 
     Args:
@@ -414,18 +421,17 @@ def from_file(tx_draft_path: str, network: bool, debug: bool = False, aiken_path
     try:
         # get cbor hex from the file and proceed
         cborHex = data['cborHex']
-        return from_cbor(cborHex, network, debug, aiken_path)
+        return from_cbor(cborHex, network, debug, aiken_path, plutus_version)
     except KeyError:
         return [{}]
 
 
-def inputs_from_file(tx_draft_path: str, network: bool, debug: bool = False) -> tuple[str, str] | None:
+def inputs_from_file(tx_draft_path: str, debug: bool = False) -> tuple[str, str] | None:
     """Given a tx draft file return the inputs in lexicographical order and the tx cbor required
     for tx simulation.
 
     Args:
         tx_draft_path (str): The path to the tx.draft file
-        network (bool): The network flag, mainnet (True) or preprod (False)
         debug (bool, optional): Debug prints to console. Defaults to False.
 
     Returns:
